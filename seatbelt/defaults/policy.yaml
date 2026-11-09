@@ -1,0 +1,16 @@
+# Seatbelt default policy ("Trader pack"). Safe by default: paper mode is ON and nothing live runs
+# until a human types `/seatbelt live I-ACCEPT-RISK`.
+# Change limits with `/seatbelt limits <key> <value>` (not by editing files: the agent is blocked from them).
+
+max_order_usd: 100          # orders above this are blocked
+ask_above_usd: 50           # orders above this need your approval
+max_leverage: 3
+leverage_action: clamp      # clamp = lower it to the limit and tell you; block = refuse
+symbols_allow: [BTC, ETH]   # anything else -> on_unlisted
+venues_allow: []            # empty = any venue
+on_unlisted: ask            # ask | block
+daily_max_orders: 10
+daily_max_notional_usd: 500
+unknown_trade_tools: ask    # live mode only; paper mode always blocks unrecognized trading tools
+unit_prices_usd: {}         # e.g. {ETH: 2500} so NFT prices in ETH can be converted to dollars
+admin_user_ids: []          # gateway users allowed to use /seatbelt live|limits|resume|reset

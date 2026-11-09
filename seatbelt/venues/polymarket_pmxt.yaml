@@ -1,0 +1,44 @@
+# Verified against hermes-pmxt 0.4.0 (tools.py): orders go through the generic pmxt_call(method=...) tool,
+# or pmxt_order / pmxt_submit_order when called from execute_code or exposed by another plugin.
+adapters:
+  - name: pmxt-call-order
+    kind: prediction
+    venue_from: exchange
+    default_price: 1.0          # a share never costs more than $1, so amount x 1.0 is a safe upper bound
+    match:
+      tool: "^pmxt_call$"
+      when:
+        # any method NAME containing a money-moving verb counts (also compound names like cancelAndCreateOrder)
+        method: "(?i)(create|submit|place|withdraw|transfer|send|buy|sell|swap|redeem|split|merge)"
+    fields:
+      symbol: [params.market_id, params.marketId, params.market]
+      side: [params.side]
+      quantity: [params.amount, params.size]
+      price: [params.price]
+      notional: [params.notional_usd]
+
+  - name: pmxt-order
+    kind: prediction
+    venue_from: exchange
+    default_price: 1.0
+    match:
+      tool: "^pmxt_order$"
+    fields:
+      symbol: [market_id]
+      side: [side]
+      quantity: [amount]
+      price: [price]
+
+  # The submit step only carries an opaque token, so its size is unknown: Seatbelt asks the human (live)
+  # or simulates (paper).
+  - name: pmxt-submit-order
+    kind: prediction
+    venue_from: exchange
+    match:
+      tool: "^pmxt_submit_order$"
+    fields: {}
+
+  - name: pmxt-build-order-preview
+    kind: read                  # builds/previews an order without sending it
+    match:
+      tool: "^pmxt_build_order$"

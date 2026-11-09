@@ -1,0 +1,10 @@
+name: seatbelt
+version: "0.1.0"
+description: "Your limits on what an AI agent can trade, enforced in code. A checkpoint in front of every trading-looking tool call (perps, prediction markets, NFTs, swaps): allow, block, ask you, or clamp leverage. Paper mode simulates trades. /seatbelt halt stops everything; every decision is logged locally."
+author: "Seatbelt contributors"
+license: MIT
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+provides_middleware:
+  - tool_execution

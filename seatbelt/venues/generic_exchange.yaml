@@ -1,0 +1,27 @@
+# UNVERIFIED templates for exchange tools. Tool and argument names differ per plugin: run `/seatbelt learn`
+# to see the real ones, then copy and edit this file into <hermes home>/plugin-data/seatbelt/adapters/.
+# Anything trading-looking without an adapter is never silently allowed: paper mode blocks it, live mode asks.
+adapters:
+  - name: ccxt-style-order
+    kind: order                 # perps / futures / spot: size, leverage and symbol allow-list apply
+    venue_from: exchange        # Binance, Bybit, Hyperliquid... whichever the tool names
+    match:
+      tool: "(?i)(create_?order|place_?order|submit_?order|open_?position|market_?(buy|sell)|limit_?(buy|sell))$"
+    fields:
+      symbol: [symbol, pair, market, coin, instrument]
+      side: [side, direction]
+      quantity: [amount, quantity, qty, size]
+      price: [price, limit_price, entry_price]
+      notional: [notional, usd_amount, quote_amount, cost]
+      leverage: [leverage, lev, leverageRatio, leverage_ratio, marginLeverage, margin_leverage, params.leverage]
+      order_type: [type, order_type, orderType, ordType]
+
+  - name: nft-purchase
+    kind: nft_buy               # OpenSea and friends: price is usually in ETH; set unit_prices_usd to convert
+    venue: opensea
+    symbol_template: "{contract}:{token_id}"
+    match:
+      tool: "(?i)(buy_?nft|purchase_?nft|fulfill_?(order|listing)|accept_?offer|mint)"
+    fields:
+      price: [price, price_eth, amount]
+      currency: [currency, symbol, payment_token]
