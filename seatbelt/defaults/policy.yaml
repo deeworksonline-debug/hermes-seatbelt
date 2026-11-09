@@ -14,3 +14,4 @@ daily_max_notional_usd: 500
 unknown_trade_tools: ask    # live mode only; paper mode always blocks unrecognized trading tools
 unit_prices_usd: {}         # e.g. {ETH: 2500} so NFT prices in ETH can be converted to dollars
 admin_user_ids: []          # gateway users allowed to use /seatbelt live|limits|resume|reset
+require_manual_approvals: true   # asks are blocked unless Hermes approvals.mode is manual (a person decides)

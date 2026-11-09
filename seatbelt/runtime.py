@@ -18,10 +18,10 @@ import hashlib
 import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 
-from . import messages
+from . import hermes_env, messages
 from .adapters import Adapter, find_adapter
 from .engine import ALLOW, ASK, BLOCK, CLAMP, decide
 from .guard_self import SelfGuard
@@ -58,6 +58,7 @@ class Runtime:
         self.guard = guard
         self._pending: dict[str, list[tuple[Optional[float], float]]] = {}
         self._verdicts: dict[str, Verdict] = {}
+        self.approval_mode_fn = hermes_env.approval_mode      # injectable for tests
 
     # --- helpers ---------------------------------------------------------------------------------
     def policy(self) -> Policy:
@@ -89,6 +90,14 @@ class Runtime:
                 leverage=intent.leverage if intent else None, args_preview=redact_args(args))
         except Exception:
             logger.exception("seatbelt: audit log write failed")
+
+    def _no_human_note(self) -> str:
+        mode = self.approval_mode_fn()
+        return (f"this needs your approval, but Hermes is set so that a person is not guaranteed to decide "
+                f"(approvals.mode = {mode}); to get a real prompt run: {hermes_env.FIX_HINT}")
+
+    def _asks_reach_a_human(self, policy: Policy) -> bool:
+        return (not policy.require_manual_approvals) or hermes_env.humans_decide(self.approval_mode_fn())
 
     # --- pending reservations (asks) ---------------------------------------------------------------
     def _prune_pending(self) -> None:
@@ -161,6 +170,9 @@ class Runtime:
             if paper or policy.unknown_trade_tools == "block":
                 self._log(tool_name, "block", "unknown trading tool", session_id, None, args, mode)
                 return Verdict(BLOCK, key, messages.unknown_tool_block_message(tool_name, paper), paper=paper)
+            if not self._asks_reach_a_human(policy):
+                self._log(tool_name, "block", "unknown trading tool; no human approval available", session_id, None, args, mode)
+                return Verdict(BLOCK, key, f"Seatbelt blocked '{tool_name}': it looks like a trading tool Seatbelt cannot read, and {self._no_human_note()}.", paper=paper)
             blob = hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode("utf-8", "replace")).hexdigest()[:16]
             self._log(tool_name, "ask", "unknown trading tool", session_id, None, args, mode)
             self._pending.setdefault(key, []).append((None, time.time()))
@@ -171,6 +183,9 @@ class Runtime:
         orders, notional_today = self.state.totals()
         pend_n, pend_sum = self._pending_totals()
         decision = decide(intent, policy, orders_today=orders + pend_n, notional_today=notional_today + pend_sum, paper=paper)
+        if decision.action == ASK and not self._asks_reach_a_human(policy):
+            decision = replace(decision, action=BLOCK, reasons=decision.reasons + [self._no_human_note()],
+                               rule_key="", modified_args=None)
 
         if decision.action in (ALLOW, CLAMP):
             self.state.add_totals(decision.notional_to_count)

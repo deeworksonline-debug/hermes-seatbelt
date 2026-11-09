@@ -53,4 +53,6 @@ def rt(sb, tmp_path):
     state = sb.state.State(sqlite3.connect(":memory:", check_same_thread=False))
     adapters = sb.adapters.load_adapters(ROOT / "venues")
     protected = [tmp_path / "plugin-data" / "seatbelt"]
-    return sb.runtime.Runtime(state, adapters, sb.guard_self.SelfGuard(protected))
+    runtime = sb.runtime.Runtime(state, adapters, sb.guard_self.SelfGuard(protected))
+    runtime.approval_mode_fn = lambda: "manual"        # most tests assume a person answers approval prompts
+    return runtime

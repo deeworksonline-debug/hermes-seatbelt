@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
+from . import hermes_env
 from .policy import Policy, coerce_override, load_policy
 from .state import MODE_LIVE, MODE_PAPER, State
 
@@ -64,6 +65,16 @@ def _fmt_ts(ts: float) -> str:
     return time.strftime("%m-%d %H:%M:%S", time.localtime(ts))
 
 
+def _approvals_line(policy: Policy) -> str:
+    mode = hermes_env.approval_mode()
+    if hermes_env.humans_decide(mode):
+        return "Approvals: manual - mid-size orders will ask YOU."
+    if not policy.require_manual_approvals:
+        return f"Approvals: Hermes mode is '{mode}' - mid-size orders are sent to Hermes' approval step, which may approve them for you."
+    return (f"Approvals: Hermes mode is '{mode}', so a person is not guaranteed to decide. Mid-size orders are BLOCKED "
+            f"instead of asking. For real approval prompts run: {hermes_env.FIX_HINT}")
+
+
 def _status(state: State) -> str:
     policy = load_policy(state.overrides())
     orders, notional = state.totals()
@@ -76,6 +87,7 @@ def _status(state: State) -> str:
         f"leverage max {policy.max_leverage:g}x ({policy.leverage_action})",
         f"Allowed symbols: {', '.join(policy.symbols_allow) or 'any'}; venues: {', '.join(policy.venues_allow) or 'any'}; unlisted -> {policy.on_unlisted}",
         f"Paper portfolio: {paper['fills']} simulated fills, ${paper['notional']:,.2f} notional",
+        _approvals_line(policy),
     ]
     return "\n".join(lines)
 

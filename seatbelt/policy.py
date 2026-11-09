@@ -29,13 +29,14 @@ class Policy:
     daily_max_orders: int = 10
     daily_max_notional_usd: float = 500.0
     unknown_trade_tools: str = "ask"        # ask | block (live mode); always blocked in paper mode
+    require_manual_approvals: bool = True   # an 'ask' only counts if Hermes is set so a PERSON decides
     unit_prices_usd: dict = field(default_factory=dict)  # e.g. {"ETH": 2500} for native-priced NFTs
     admin_user_ids: list = field(default_factory=list)   # who may use sensitive commands from a gateway
 
     # Keys a human may change with `/seatbelt limits <key> <value>`.
     EDITABLE = (
         "max_order_usd", "ask_above_usd", "max_leverage", "leverage_action", "on_unlisted",
-        "daily_max_orders", "daily_max_notional_usd", "unknown_trade_tools",
+        "daily_max_orders", "daily_max_notional_usd", "unknown_trade_tools", "require_manual_approvals",
     )
 
 
