@@ -1,0 +1,10 @@
+name: mock-exchange
+version: "0.1.0"
+description: "DEMO ONLY. A fake exchange for showing Seatbelt: create_order, get_price and list_orders. It makes no network calls and moves no money; it just records the orders it receives so you can see which ones got through."
+author: "Seatbelt contributors"
+license: MIT
+requires_hermes: ">=0.23.0"
+provides_tools:
+  - create_order
+  - get_price
+  - list_orders
