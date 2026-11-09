@@ -109,7 +109,7 @@ def decide(intent: TradeIntent, policy: Policy, *, orders_today: int, notional_t
         asks, ask_codes = [], []          # paper trades cost nothing; the human is not interrupted (hard limits still block)
     if asks:
         codes = sorted(set(ask_codes))
-        key = f"seatbelt:{intent.venue}:{(intent.symbol or '*').upper()}:{'+'.join(codes)}"
+        key = f"seatbelt:{intent.venue}:{(intent.symbol or '*').upper()}:{'+'.join(codes)}:{(f'{notional:.2f}' if isinstance(notional, (int, float)) else 'unknown')}"   # exact size: a remembered "allow" never covers a bigger order
         if {"size-unknown", "leverage-unknown"} & set(codes):
             # An open-ended question must never become a blanket "always allow": tie the key to these exact args.
             blob = json.dumps(intent.args, sort_keys=True, default=str)

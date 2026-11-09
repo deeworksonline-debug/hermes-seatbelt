@@ -108,11 +108,13 @@ def test_block_message_is_actionable(rt):
     assert "Seatbelt stopped" in msg and "per-order limit" in msg and "remaining budget" in msg and "/seatbelt" in msg
 
 
-def test_ask_returns_stable_rule_key(rt):
+def test_ask_rule_key_is_stable_for_the_same_order_but_not_a_bigger_one(rt):
     rt.state.set_mode("live")
     a = rt.pre_tool_call("create_order", order(amount=0.0015))
-    b = rt.pre_tool_call("create_order", order(amount=0.0019))
-    assert a["action"] == b["action"] == "approve" and a["rule_key"] == b["rule_key"]
+    same = rt.pre_tool_call("create_order", order(amount=0.0015))
+    bigger = rt.pre_tool_call("create_order", order(amount=0.0019))
+    assert a["action"] == bigger["action"] == "approve"
+    assert a["rule_key"] == same["rule_key"] and a["rule_key"] != bigger["rule_key"]
 
 
 def test_clamp_returns_modify(rt):
