@@ -24,6 +24,8 @@ _SENSITIVE_NEAR_RE = re.compile(r"(?<![\w-])seatbelt(?=/|\s|$|[;&|]).{0,60}(?:pl
 # Commands that can switch plugins off or rewrite Hermes configuration.
 _PLUGIN_CLI_RE = re.compile(r"hermes\b[^\n;|&]*\bplugins?\b[^\n;|&]*\b(?:disable|remove|uninstall|update)\b", re.I)
 _CONFIG_SET_RE = re.compile(r"hermes\b[^\n;|&]*\bconfig\b[^\n;|&]*\bset\b", re.I)
+# The agent must not drive Seatbelt's human-only controls (e.g. `hermes chat -q "/seatbelt live ..."` from a shell).
+_SLASH_CMD_RE = re.compile(r"(?<![\w/.-])/(?:seatbelt|halt)\b", re.I)
 
 
 def _norm(text: str) -> str:
@@ -79,7 +81,7 @@ class SelfGuard:
             text = args.get(key)
             if not isinstance(text, str):
                 return False
-            if _PLUGIN_CLI_RE.search(text) or _CONFIG_SET_RE.search(text):
+            if _PLUGIN_CLI_RE.search(text) or _CONFIG_SET_RE.search(text) or _SLASH_CMD_RE.search(text):
                 return True
             lowered = self._expand(_norm(text))
             if _SEGMENT_RE.search(lowered) or _SENSITIVE_NEAR_RE.search(lowered):

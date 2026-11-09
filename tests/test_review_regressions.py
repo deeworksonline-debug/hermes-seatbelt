@@ -197,3 +197,28 @@ def test_local_ui_platforms_are_trusted_only_without_a_remote_source(rt, sb):
     handler = sb.commands.make_handler(rt.state)
     assert "LIVE" in handler("live I-ACCEPT-RISK", platform="tui", source=None)
     assert "only be used" in handler("resume", platform="telegram", source=None)
+
+
+# --- found in the live Hermes run ---------------------------------------------------------------------
+def test_local_gateway_platform_is_trusted(rt, sb):
+    """`hermes chat` runs commands through the gateway's local adapter: platform == "local"."""
+    class LocalSource:
+        user_id = "sid:S-1-5-21-0"
+    handler = sb.commands.make_handler(rt.state)
+    assert "LIVE" in handler("live I-ACCEPT-RISK", platform="local", source=LocalSource())
+    assert "only be used" in handler("resume", platform="telegram", source=LocalSource())
+
+
+@pytest.mark.parametrize("cmd", [
+    'hermes chat -q "/seatbelt live I-ACCEPT-RISK"',
+    "hermes chat -q '/seatbelt limits max_order_usd 100000'",
+    "echo /halt && hermes -z '/seatbelt resume'",
+])
+def test_agent_cannot_drive_seatbelt_commands_from_a_shell(rt, cmd):
+    assert rt.pre_tool_call("terminal", {"command": cmd})["action"] == "block", cmd
+    assert rt.pre_tool_call("execute_code", {"code": f"import os; os.system({cmd!r})"})["action"] == "block"
+
+
+def test_slash_command_guard_has_no_false_positive_on_paths(rt):
+    for cmd in ("ls /usr/local/bin", "cd /tmp/halting-problem && ls", "cat docs/seatbelt-notes.md"):
+        assert rt.pre_tool_call("terminal", {"command": cmd}) is None, cmd

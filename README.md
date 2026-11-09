@@ -43,6 +43,8 @@ Seatbelt is a seatbelt, not a vault.
 - Order size is read from tool arguments, and the **worst case wins**: if several argument names disagree the largest size and leverage are used, a price on a market order is not trusted, and a declared notional can only raise the checked size. If size cannot be determined the order is escalated, not guessed. Prediction-market orders without a price are bounded at $1 per share.
 - If a tool call carries no `tool_call_id`, Seatbelt never reuses an earlier decision; at worst an order is counted twice, which errs on the safe side.
 - Loss limits are not included: Seatbelt does not know your profit and loss. Limits are on order size, count and notional.
+- "Ask you" goes through Hermes' own approval gate, so it follows your Hermes approval settings: if you turn approvals off or run in a mode that auto-approves (for example `approvals.single_query_mode: approve`), Seatbelt's asks are approved automatically. Hard blocks, clamps, paper mode and `/seatbelt halt` do not depend on that setting.
+- I have not tested whether the hook fires for tools delivered through MCP servers; adapters match by tool name, so check `/seatbelt learn` after connecting one.
 - It does not stop prompt injection. It makes the consequences small.
 
 **Also set exchange-side protection:** use API keys with *trade-only, no withdrawal* permission and IP allow-lists. Never put real keys in a test environment. Nothing here is financial advice.

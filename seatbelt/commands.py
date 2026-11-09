@@ -28,8 +28,10 @@ HELP = """Seatbelt - your limits on what an agent can trade.
 
 
 def _trusted(platform: Optional[str], source: Any, policy: Policy) -> bool:
-    if platform == "cli" or (platform in ("tui", "desktop") and source is None):
-        return True                                     # the local user's own terminal / app
+    # "cli": classic terminal. "local": the local-machine adapter the gateway serves `hermes chat` through.
+    # "tui"/"desktop": local UIs, which pass no remote source. Telegram/Discord/etc. are never trusted by default.
+    if platform in ("cli", "local") or (platform in ("tui", "desktop") and source is None):
+        return True
     user_id = getattr(source, "user_id", None)
     return bool(user_id) and str(user_id) in {str(u) for u in policy.admin_user_ids}
 
