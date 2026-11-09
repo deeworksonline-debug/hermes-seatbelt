@@ -32,7 +32,8 @@ Stop / go
 More
   /seatbelt limits [name value]  see or change one limit, e.g.  limits max_order_usd 50
   /seatbelt learn     trading tools Seatbelt does not recognise yet
-  /seatbelt reset     put the limits back to the defaults"""
+  /seatbelt reset     put the limits back to the defaults
+  /seatbelt reset usage   start today's counters again from zero (limits unchanged)"""
 
 WELCOME = ("Welcome to Seatbelt. It sits between your AI agent and your money: every order is checked against your limits, "
            "and nothing real is traded until you type /seatbelt live. Type /seatbelt setup to choose your limits in 3 quick "
@@ -190,6 +191,9 @@ def make_handler(state: State, ask=None):
             lines = ["Trading-looking tools with no adapter (add one in adapters/ to include them):"]
             lines += [f"  {t['tool']}  (seen {t['count']}x; args: {t['arg_keys']})" for t in tools]
             return "\n".join(lines)
+        if sub == "reset" and rest[:1] == ["usage"]:
+            state.reset_usage()
+            return "Today's usage was reset to zero (0 orders, $0). Your limits were not changed."
         if sub == "reset":
             state.clear_overrides()
             return "Limit changes cleared; defaults restored."

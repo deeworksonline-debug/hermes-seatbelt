@@ -108,6 +108,12 @@ class State:
                 (day or today_utc(), float(notional or 0.0)))
             self._conn.commit()
 
+    def reset_usage(self, day: Optional[str] = None) -> None:
+        """Zero today's order count and notional (limits are untouched). Owner-only, via /seatbelt reset usage."""
+        with self.lock:
+            self._conn.execute("DELETE FROM counters WHERE day=?", (day or today_utc(),))
+            self._conn.commit()
+
     # --- audit -----------------------------------------------------------------------------------
     def log(self, *, tool: str, decision: str, reason: str = "", session_id: str = "", venue: str = "",
             symbol: str = "", side: str = "", notional: Optional[float] = None, leverage: Optional[float] = None,

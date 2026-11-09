@@ -63,3 +63,15 @@ def test_welcome_is_shown_once(rt, sb):
 def test_help_mentions_the_friendly_commands(rt, sb):
     out = sb.commands.make_handler(rt.state)("help", platform="cli")
     assert "/seatbelt setup" in out and "practice mode" in out
+
+
+def test_reset_usage_zeroes_todays_counters_but_keeps_limits(rt, sb):
+    handler = sb.commands.make_handler(rt.state)
+    handler("limits max_order_usd 90", platform="cli")
+    for i in range(3):
+        rt.pre_tool_call("create_order", order(amount=0.0005), tool_call_id=f"r{i}")
+    assert rt.state.totals()[0] == 3
+    assert "reset to zero" in handler("reset usage", platform="cli")
+    assert rt.state.totals() == (0, 0.0)
+    assert sb.policy.load_policy(rt.state.overrides()).max_order_usd == 90.0
+    assert "only be used" in handler("reset usage", platform="telegram", source=None)
