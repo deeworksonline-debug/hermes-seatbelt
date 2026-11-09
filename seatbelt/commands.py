@@ -13,18 +13,42 @@ from .policy import Policy, coerce_override, load_policy
 from .state import MODE_LIVE, MODE_PAPER, State
 
 LIVE_CONFIRM = "I-ACCEPT-RISK"
-_SENSITIVE = {"live", "limits", "resume", "reset"}
+_SENSITIVE = {"live", "limits", "resume", "reset", "setup"}
 
-HELP = """Seatbelt - your limits on what an agent can trade.
-  /seatbelt status             mode, halt state, today's usage, active limits
-  /seatbelt log [n]            last n decisions (default 15)
-  /seatbelt halt               block ALL trading actions now      (also: /halt)
-  /seatbelt resume             allow trading again
-  /seatbelt paper              simulate trades; nothing is sent (default)
-  /seatbelt live I-ACCEPT-RISK send real orders (still limited by your limits)
-  /seatbelt limits [key value] show or change a limit, e.g. max_order_usd 50
-  /seatbelt learn              trading-looking tools Seatbelt has no adapter for
-  /seatbelt reset              clear limit changes back to defaults"""
+HELP = """Seatbelt keeps your AI agent inside limits YOU choose. Nothing real is traded unless you switch to live mode.
+
+Getting started
+  /seatbelt setup     answer 3 simple questions to set your limits
+  /seatbelt status    what is on, and what you have used today
+  /seatbelt log       everything the agent tried, and what Seatbelt decided
+
+Stop / go
+  /seatbelt halt      stop ALL trading right now (also: /halt)
+  /seatbelt resume    start again
+  /seatbelt paper     practice mode: orders are simulated, nothing real is sent (the default)
+  /seatbelt live I-ACCEPT-RISK   allow real orders, still inside your limits
+
+More
+  /seatbelt limits [name value]  see or change one limit, e.g.  limits max_order_usd 50
+  /seatbelt learn     trading tools Seatbelt does not recognise yet
+  /seatbelt reset     put the limits back to the defaults"""
+
+WELCOME = ("Welcome to Seatbelt. It sits between your AI agent and your money: every order is checked against your limits, "
+           "and nothing real is traded until you type /seatbelt live. Type /seatbelt setup to choose your limits in 3 quick "
+           "questions, or /seatbelt help for everything it can do.\n")
+
+_NO_CHANGE = "keep"
+_SETUP_STEPS = [
+    ("How much money may the agent put into ONE order?",
+     [("25", "Up to $25 - very cautious"), ("100", "Up to $100 - balanced (the default)"),
+      ("250", "Up to $250"), (_NO_CHANGE, "Keep what I have now")]),
+    ("How much in TOTAL per day?",
+     [("100", "Up to $100 a day"), ("500", "Up to $500 a day (the default)"),
+      ("2000", "Up to $2,000 a day"), (_NO_CHANGE, "Keep what I have now")]),
+    ("Leverage is borrowed money that magnifies wins AND losses. How much may the agent use?",
+     [("1", "None (1x) - the safest"), ("3", "Up to 3x (the default)"),
+      ("5", "Up to 5x"), (_NO_CHANGE, "Keep what I have now")]),
+]
 
 
 def _trusted(platform: Optional[str], source: Any, policy: Policy) -> bool:
@@ -69,7 +93,45 @@ def _log(state: State, count: int) -> str:
     return "\n".join(out)
 
 
-def make_handler(state: State):
+def _setup(state: State, ask) -> str:
+    """Three plain questions -> limits. Nothing is changed unless every question is answered."""
+    if ask is None:
+        return "Guided setup is not available here. Use '/seatbelt limits' instead (see /seatbelt help)."
+    answers = []
+    for question, options in _SETUP_STEPS:
+        choices = [{"value": value, "label": label} for value, label in options]
+        answer = ask(question, choices)
+        if answer is None:
+            return "Setup stopped (no answer was given), so nothing was changed. Run /seatbelt setup to try again."
+        answers.append(str(answer))
+    per_order, per_day, leverage = answers
+    changes: dict = {}
+    notes: list = []
+    if per_order != _NO_CHANGE:
+        value = float(per_order)
+        changes["max_order_usd"] = value
+        changes["ask_above_usd"] = value / 2
+    if per_day != _NO_CHANGE:
+        changes["daily_max_notional_usd"] = float(per_day)
+    if leverage != _NO_CHANGE:
+        changes["max_leverage"] = float(leverage)
+    current = load_policy(state.overrides())
+    final_order = changes.get("max_order_usd", current.max_order_usd)
+    final_day = changes.get("daily_max_notional_usd", current.daily_max_notional_usd)
+    if final_day < final_order:
+        changes["daily_max_notional_usd"] = final_order
+        notes.append(f"Your daily total was raised to ${final_order:,.0f} so it is not smaller than one order.")
+    if not changes:
+        return "Nothing changed: you kept your current limits. /seatbelt status shows them."
+    for key, value in changes.items():
+        state.set_override(key, coerce_override(key, value))
+    state.set_flag("welcomed")
+    summary = _status(state)
+    mode = "You are still in PRACTICE mode, so nothing real is traded. When you are ready: /seatbelt live I-ACCEPT-RISK"
+    return "Done. Your limits are set.\n\n" + summary + ("\n\n" + "\n".join(notes) if notes else "") + "\n\n" + mode
+
+
+def make_handler(state: State, ask=None):
     def handle(raw_args: str = "", *, platform: Optional[str] = None, source: Any = None, **_: Any) -> str:
         parts = (raw_args or "").strip().split()
         sub = parts[0].lower() if parts else "status"
@@ -81,8 +143,13 @@ def make_handler(state: State):
 
         if sub in ("help", "?"):
             return HELP
+        if sub == "setup":
+            return _setup(state, ask)
         if sub == "status":
-            return _status(state)
+            first_time = not state.get_flag("welcomed")
+            if first_time:
+                state.set_flag("welcomed")
+            return (WELCOME if first_time else "") + _status(state)
         if sub == "log":
             try:
                 count = max(1, min(100, int(rest[0]))) if rest else 15

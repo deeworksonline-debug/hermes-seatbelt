@@ -61,6 +61,6 @@ def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", runtime.pre_tool_call)          # block / ask
     ctx.register_hook("post_tool_call", runtime.post_tool_call)
     ctx.register_middleware("tool_execution", runtime.tool_execution)
-    ctx.register_command("seatbelt", make_handler(state), description="Trading limits: status, log, halt, resume, paper, live, limits, learn", args_hint="<status|log|halt|resume|paper|live|limits|learn>")
+    ctx.register_command("seatbelt", make_handler(state, getattr(ctx, "ask_choice", None)), description="Your trading limits: setup, status, log, halt, resume, paper, live", args_hint="<setup|status|log|halt|resume|paper|live|limits>")
     ctx.register_command("halt", make_halt_handler(state), description="Seatbelt: block all trading actions now")
     logger.info("seatbelt: loaded %d adapters; mode=%s halted=%s", len(adapters), state.mode(), state.is_halted())

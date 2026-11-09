@@ -51,6 +51,14 @@ class State:
         self._conn.execute("INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
         self._conn.commit()
 
+    def get_flag(self, name: str) -> bool:
+        with self.lock:
+            return self._get(f"flag:{name}", "0") == "1"
+
+    def set_flag(self, name: str, value: bool = True) -> None:
+        with self.lock:
+            self._set(f"flag:{name}", "1" if value else "0")
+
     def is_halted(self) -> bool:
         with self.lock:
             return self._get("halted", "0") == "1"
